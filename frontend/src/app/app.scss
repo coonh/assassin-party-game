@@ -475,6 +475,11 @@
             color: var(--scarlet-bright);
         }
     }
+
+    .action-section {
+        margin-top: 3rem;
+        animation: fadeIn 1s ease-out 1s both;
+    }
 }
 
 /* GAME OVER SCREEN */
