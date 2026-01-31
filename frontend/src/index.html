@@ -16,10 +16,31 @@
 <body>
   <app-root></app-root>
   <script>
+    // Fail-safe: If a script fails to load (likely due to a stale cache/deployment), reload the page.
+    window.addEventListener('error', (event) => {
+      const target = event.target || event.srcElement;
+      if (target.tagName === 'SCRIPT') {
+        console.error('Script load error detected. Forcing reload...', target.src);
+        // Only reload once to avoid loops if the server is actually down
+        const reloadKey = 'last_reload_timestamp';
+        const now = Date.now();
+        const lastReload = parseInt(localStorage.getItem(reloadKey) || '0');
+        
+        if (now - lastReload > 10000) { // Max one reload every 10 seconds
+          localStorage.setItem(reloadKey, now.toString());
+          window.location.reload(true);
+        }
+      }
+    }, true);
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('SW Registered', reg))
+          .then(reg => {
+            console.log('SW Registered', reg);
+            // Check for updates periodically
+            reg.update();
+          })
           .catch(err => console.log('SW Failed', err));
       });
     }
