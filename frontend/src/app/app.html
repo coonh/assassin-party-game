@@ -1,0 +1,270 @@
+<ng-container *ngIf="gameState$ | async as state">
+  <!-- Instructions Toggle -->
+  <button class="instructions-toggle" (click)="toggleInstructions()">?</button>
+
+  <!-- Instructions Modal -->
+  <div class="modal-overlay" *ngIf="showInstructions" (click)="toggleInstructions()">
+    <div class="modal-content instructions-modal fade-in" (click)="$event.stopPropagation()">
+      <button class="close-btn" (click)="toggleInstructions()">×</button>
+      <div class="ornament">☠ ✦ ☠</div>
+      <h2>Game Instructions</h2>
+      <div class="instructions-content">
+        <section>
+          <h3>The Objective</h3>
+          <p>The last standing assassin wins the game. Trust no one!</p>
+        </section>
+
+        <section>
+          <h3>How to Hunt</h3>
+          <ul>
+            <li>You will receive a <strong>Target</strong> name on your screen.</li>
+            <li>To eliminate them, you must get them to <strong>take an object</strong> from your hands (e.g., a pen, a
+              drink, a card).</li>
+            <li>Once they touch the object you're holding, the elimination is complete.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>Confirming the Kill</h3>
+          <ul>
+            <li>Click <strong>"I Made the Kill"</strong> on your device.</li>
+            <li>Your target will get 15 seconds to <strong>Confirm</strong> or <strong>Deny</strong>.</li>
+            <li>A confirmed kill gives you their target as your new mission.</li>
+            <li>If they don't respond in time, the kill is <strong>auto-confirmed</strong>.</li>
+          </ul>
+        </section>
+
+        <p class="flavor-text italic">"The shadows are your only friend..."</p>
+      </div>
+      <div class="ornament">✦ ☠ ✦</div>
+    </div>
+  </div>
+
+  <!-- Error Toast -->
+  <div class="error-toast" *ngIf="error$ | async as error">
+    {{ error }}
+  </div>
+
+  <!-- HOME SCREEN -->
+  <div class="screen home-screen fade-in" *ngIf="state.phase === 'idle'">
+    <div class="ornament">☠ ✦ ☠</div>
+    <h1 class="title">ASSASSIN<br><span class="subtitle">PARTY</span></h1>
+    <div class="ornament">✦ ☠ ✦</div>
+
+    <p class="tagline">The Hunt Begins at Midnight</p>
+
+    <div class="name-input-group">
+      <label for="playerName">Your Name</label>
+      <input type="text" id="playerName" [(ngModel)]="playerName" placeholder="Enter your name..." maxlength="20" />
+    </div>
+
+    <div class="button-group" *ngIf="!showJoinForm">
+      <button class="btn btn-primary" (click)="createLobby()" [disabled]="!playerName.trim()">
+        Create Lobby
+      </button>
+      <button class="btn" (click)="showJoin()">
+        Join Lobby
+      </button>
+    </div>
+
+    <div class="join-form fade-in" *ngIf="showJoinForm">
+      <div class="code-input-group">
+        <label for="lobbyCode">Lobby Code</label>
+        <input type="text" id="lobbyCode" [(ngModel)]="lobbyCode" placeholder="Enter 4-digit code" maxlength="4"
+          class="code-input" #lobbyCodeInput />
+      </div>
+      <div class="button-group">
+        <button class="btn btn-primary" (click)="joinLobby()" [disabled]="!playerName.trim() || lobbyCode.length !== 4">
+          Join
+        </button>
+        <button class="btn" (click)="hideJoin()">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOBBY SCREEN -->
+  <div class="screen lobby-screen fade-in" *ngIf="state.phase === 'lobby'">
+    <h2>The Gathering</h2>
+
+    <div class="lobby-code-container">
+      <span class="label">Share this code</span>
+      <div class="lobby-code" (click)="copyLobbyCode(state.lobbyCode)" title="Click to copy" style="cursor: pointer;">{{
+        state.lobbyCode }}</div>
+    </div>
+
+    <div class="players-section">
+      <h3>Conspirators <span class="count">({{ state.players.length }})</span></h3>
+      <ul class="player-list">
+        <li class="player-item" *ngFor="let player of state.players">
+          <span class="player-name">{{ player.name }}</span>
+          <span class="player-host" *ngIf="player.isHost">HOST</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="action-section" *ngIf="state.isHost">
+      <p class="hint" *ngIf="state.players.length < 3">Need at least 3 players to start...</p>
+      <button class="btn btn-primary btn-large" (click)="startGame()" [disabled]="state.players.length < 3">
+        Begin the Hunt
+      </button>
+    </div>
+
+    <div class="waiting-section" *ngIf="!state.isHost">
+      <p class="pulse">Waiting for host to start the game...</p>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="screen game-screen fade-in" *ngIf="state.phase === 'playing'">
+    <div class="status-bar">
+      <span class="alive-count">{{ state.aliveCount }} Alive</span>
+    </div>
+
+    <h2><span class="player-greeting">{{ playerName }}</span>, your target is...</h2>
+
+    <div class="card-container" [class.card-ripping]="isSlashing" [class.card-fly-in]="isCardFlyingIn">
+      <!-- Left piece -->
+      <div class="card card-piece card-left">
+        <span class="card-corner top-left">☠</span>
+        <div class="card-center">
+          <div class="card-label" *ngIf="!isSlashing">ELIMINATE</div>
+          <div class="card-name">{{ displayTarget }}</div>
+        </div>
+      </div>
+
+      <!-- Right piece -->
+      <div class="card card-piece card-right">
+        <div class="card-center">
+          <div class="card-label" *ngIf="!isSlashing">ELIMINATE</div>
+          <div class="card-name">{{ displayTarget }}</div>
+        </div>
+        <span class="card-corner bottom-right">☠</span>
+      </div>
+    </div>
+
+    <button class="btn btn-danger btn-large" (click)="initiateKill()" [disabled]="state.waitingForKillConfirmation">
+      {{ state.waitingForKillConfirmation ? 'Waiting for confirmation...' : 'I Made the Kill' }}
+    </button>
+
+    <!-- Player Status Section -->
+    <div class="player-status-section" *ngIf="state.allPlayers && state.allPlayers.length > 0">
+      <h3>Assassins</h3>
+      <div class="player-circles">
+        <div class="player-circle" *ngFor="let p of state.allPlayers" [class.alive]="p.alive" [class.dead]="!p.alive"
+          [class.disconnected]="!p.connected"
+          [title]="p.name + (p.alive ? '' : ' (Dead)') + (!p.connected ? ' (Disconnected)' : '')">
+          <span class="player-initial">{{ p.name.charAt(0).toUpperCase() }}</span>
+          <span class="player-circle-name">{{ p.name }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kill waiting overlay (for killer) -->
+    <div class="modal-overlay" *ngIf="state.waitingForKillConfirmation">
+      <div class="modal-content fade-in">
+        <h3>Awaiting Confirmation</h3>
+        <div class="timer-display" *ngIf="timeLeft > 0">
+          <span class="timer-value">{{ timeLeft }}s</span>
+          <span class="timer-label">remaining</span>
+        </div>
+        <div class="pulse-icon" *ngIf="timeLeft <= 0">⏳</div>
+        <p>Waiting for your target to confirm the kill...</p>
+        <p class="hint">Auto-confirm if no response</p>
+        <div class="button-group">
+          <button class="btn" (click)="cancelKillByKiller()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kill pending modal (for victim) -->
+    <div class="modal-overlay" *ngIf="state.pendingKill">
+      <div class="modal-content fade-in">
+        <h3>You've Been Caught!</h3>
+        <p>Someone claims to have eliminated you.</p>
+        <div class="timer-display" *ngIf="timeLeft > 0">
+          <span class="timer-value">{{ timeLeft }}s</span>
+          <span class="timer-label">to respond</span>
+        </div>
+        <p class="hint">Did you accept something from another player?</p>
+        <div class="button-group">
+          <button class="btn btn-danger" (click)="confirmDeath()">
+            Yes, I'm Dead
+          </button>
+          <button class="btn" (click)="cancelKill()">
+            No, I Refuse
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Blood Splatter Effect -->
+    <div class="blood-splatter-container" *ngIf="showSplatters">
+      <div class="splatter s1"></div>
+      <div class="splatter s2"></div>
+      <div class="splatter s3"></div>
+      <div class="splatter s4"></div>
+      <div class="splatter s5"></div>
+    </div>
+  </div>
+
+  <!-- DEAD SCREEN -->
+  <div class="screen dead-screen fade-in" *ngIf="state.phase === 'dead'">
+    <div class="ornament">☠ ☠ ☠</div>
+    <h2>You Have Fallen</h2>
+    <p class="death-message">Your hunt has ended. Watch as the survivors continue...</p>
+
+    <!-- Player Status Section for Dead Players -->
+    <div class="player-status-section" *ngIf="state.allPlayers && state.allPlayers.length > 0">
+      <h3>{{ state.aliveCount }} Assassins Remain</h3>
+      <div class="player-circles">
+        <div class="player-circle" *ngFor="let p of state.allPlayers" [class.alive]="p.alive" [class.dead]="!p.alive"
+          [class.disconnected]="!p.connected">
+          <span class="player-initial">{{ p.name.charAt(0).toUpperCase() }}</span>
+          <span class="player-circle-name">{{ p.name }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div class="screen gameover-screen fade-in" *ngIf="state.phase === 'ended'">
+    <!-- Ink splatters -->
+    <div class="ink-splatter animate"></div>
+    <div class="ink-splatter animate" style="animation-delay: 0.15s;"></div>
+    <div class="ink-splatter animate" style="animation-delay: 0.3s;"></div>
+    <div class="ink-splatter animate" style="animation-delay: 0.45s; left: 30%;"></div>
+    <div class="ink-splatter animate" style="animation-delay: 0.6s; left: 70%;"></div>
+
+    <div class="gameover-content">
+      <div class="ornament">☠ ✦ ☠</div>
+      <h2>The Hunt Ends</h2>
+      <div class="winner-card card">
+        <span class="card-corner top-left">♔</span>
+        <div class="card-center">
+          <div class="card-label">SURVIVOR</div>
+          <div class="card-name">{{ state.winner }}</div>
+        </div>
+        <span class="card-corner bottom-right">♔</span>
+      </div>
+
+      <!-- Final Player Status -->
+      <div class="player-status-section final" *ngIf="state.allPlayers && state.allPlayers.length > 0">
+        <div class="player-circles">
+          <div class="player-circle" *ngFor="let p of state.allPlayers" [class.alive]="p.alive" [class.dead]="!p.alive">
+            <span class="player-initial">{{ p.name.charAt(0).toUpperCase() }}</span>
+            <span class="player-circle-name">{{ p.name }}</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-large" (click)="playAgain()">
+        Hunt Again
+      </button>
+    </div>
+  </div>
+  <!-- FOOTER DISCLAIMER -->
+  <footer class="app-footer fade-in">
+    <p>© 2026 • Software by Dennis Stanglmair</p>
+  </footer>
+</ng-container>

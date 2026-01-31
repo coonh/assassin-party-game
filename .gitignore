@@ -1,0 +1,29 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Frontend-specific
+frontend/dist/
+frontend/tmp/
+frontend/out-tsc/
+frontend/bazel-out/
+frontend/.angular/cache/
+frontend/coverage/
+
+# Backend-specific
+backend/node_modules/
+backend/dist/
+*.env
+
+# IDEs and editors
+.idea/
+.vscode/
+.history/
+*.sublime-workspace
+.project
+.settings/
+
+# System files
+.DS_Store
+Thumbs.db
