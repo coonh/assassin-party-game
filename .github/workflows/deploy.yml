@@ -1,0 +1,54 @@
+name: Deploy Assassin Party
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build -- --base-href /hunt/
+
+      - name: Deploy Frontend to VServer
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "frontend/dist/frontend/browser/*"
+          target: "/var/www/html/hunt/"
+          strip_components: 3
+
+      - name: Deploy Backend to VServer
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "backend/*"
+          target: "/var/www/assassin-party/backend/"
+          strip_components: 1
+
+      - name: Restart Backend via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/assassin-party/backend
+            npm install --production
+            pm2 restart assassin-backend || pm2 start server.js --name assassin-backend
