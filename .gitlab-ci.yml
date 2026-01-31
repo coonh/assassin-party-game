@@ -4,6 +4,9 @@ stages:
 
 variables:
   NODE_VERSION: "20.x"
+  SERVER_IP: "coonh.de"
+  FRONTEND_PATH: "/var/www/html/hunt"
+  BACKEND_PATH: "/var/www/assassin-party"
 
 build_frontend:
   stage: build
@@ -11,7 +14,7 @@ build_frontend:
   script:
     - cd frontend
     - npm install
-    - npm run build
+    - npm run build -- --base-href /hunt/
   artifacts:
     paths:
       - frontend/dist/
@@ -33,7 +36,7 @@ deploy_job:
     - chmod 644 ~/.ssh/known_hosts
   script:
     # Deploy Frontend
-    - rsync -atv --delete frontend/dist/browser/ $SERVER_USER@$SERVER_IP:$FRONTEND_PATH
+    - rsync -atv --delete frontend/dist/frontend/browser/ $SERVER_USER@$SERVER_IP:$FRONTEND_PATH
     
     # Deploy Backend
     - rsync -atv --delete --exclude 'node_modules' backend/ $SERVER_USER@$SERVER_IP:$BACKEND_PATH
