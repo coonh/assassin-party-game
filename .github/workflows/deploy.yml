@@ -20,7 +20,7 @@ jobs:
         run: |
           cd frontend
           npm install
-          npm run build -- --base-href /hunt/
+          npm run build:prod
 
       - name: Deploy Frontend to VServer
         uses: appleboy/scp-action@master
